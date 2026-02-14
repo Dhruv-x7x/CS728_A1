@@ -41,7 +41,7 @@ source venv/bin/activate     # on Linux/Mac
 pip install -r requirements.txt
 ```
 
-For GPU support with PyTorch, follow the install instructions at https://pytorch.org/get-started/locally/ instead of relying on the pip default.
+For GPU support with PyTorch, follow the install instructions at https://pytorch.org/get-started/locally/ instead of relying on the pip default. We ran our assignment on Google Colaboratory with T4 GPU.
 
 ## How to run
 
