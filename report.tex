@@ -46,6 +46,13 @@ The GloVe model was trained on a T4 GPU. As the embedding dimension increased, t
     \caption{Training Latency vs. Embedding Dimension}
 \end{figure}
 
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=0.8\textwidth]{loss.png}
+    \caption{Training Loss vs. Embedding Dimension}
+\end{figure}
+
 \subsection*{1.3 Nearest Neighbors (GloVe, $d=200$)}
 \begin{table}[H]
     \centering
@@ -168,8 +175,11 @@ Evaluating the CRF on the CoNLL-2003 test set yielded:
 We applied a TF-IDF transformation to the raw Term-Document matrix to down-weight high-frequency words before running Truncated SVD at $d=300$.
 
 \subsection*{5.1 Quality Check 1: Nearest Neighbors Comparison}
+% Use resizebox to force the table to fit the page width
 \begin{table}[H]
     \centering
+    \caption{Nearest Neighbors Comparison: Raw vs. TF-IDF SVD}
+    \resizebox{\textwidth}{!}{%
     \begin{tabular}{lll}
         \toprule
         \textbf{Word} & \textbf{Raw SVD Top-5} & \textbf{TF-IDF SVD Top-5} \\
@@ -180,9 +190,10 @@ We applied a TF-IDF transformation to the raw Term-Document matrix to down-weigh
         year & million, platform, We, Our, start & million, Our, We, technology, business \\
         economic & financing, invest, infrastructure, Wang, Xinhua & Latin, Xinhua, financing, Wang, China \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}}
 \end{table}
-\noindent \textbf{Observation:} TF-IDF forced the SVD to capture deeper semantic relevance. For example, "India" shifted from generic business nouns (`engineer`, `model`) to highly specific historical/regional concepts (`Indian`, `partition`).
+
+\noindent \textbf{Observation:} TF-IDF forced the SVD to capture deeper semantic relevance. For example, "India" shifted from generic business nouns (\texttt{engineer}, \texttt{model}) to highly specific historical/regional concepts (\texttt{Indian}, \texttt{partition}).
 
 \subsection*{5.2 Quality Check 2: MLP Evaluation}
 Training the MLP on the TF-IDF SVD vectors yielded:
@@ -190,7 +201,46 @@ Training the MLP on the TF-IDF SVD vectors yielded:
     \item \textbf{Raw SVD (d=300) Baseline:} Acc: 0.8617 $|$ F1: 0.3333
     \item \textbf{TF-IDF SVD (d=300) Score:} Acc: 0.8581 $|$ F1: 0.3092
 \end{itemize}
+
 \noindent \textbf{Conclusion:} While TF-IDF vastly improved the topical quality of the vectors, it \textit{decreased} NER performance. Because NER relies heavily on syntax and grammar, artificially crushing the weights of common structural words distorted the grammatical relationships the MLP relies on, proving TF-IDF is better suited for Document Classification than Named Entity Recognition.
+
+\newpage
+\subsection{Additional Interesting Visualizations}
+
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=1\textwidth]{tsne300.png}
+    \caption{t-SNE of 300 Random Words colored by Frequency}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=1\textwidth]{cluster.png}
+    \caption{t-SNE Word Clusters for GloVe vs SVD}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=1\textwidth]{heatmap.png}
+    \caption{Cosine Similarity Heatmap}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=1\textwidth]{ner.png}
+    \caption{NER Performance Macro-F1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=1\textwidth]{macrof1.png}
+    \caption{Macro-F1 and Accuracy vs Embedding Dimension}
+\end{figure}
 
 \section*{GenAI Usage Policy Declaration}
 In accordance with the course honor code, we declare the use of a Generative AI assistant (Google Gemini) to assist with planning, optimizing PyTorch memory management (sparse embeddings), handling Scipy sparse matrices, and generating boilerplate plotting code. 
