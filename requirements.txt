@@ -1,0 +1,8 @@
+numpy
+torch
+scipy
+scikit-learn
+sklearn-crfsuite
+datasets==3.6.0
+matplotlib
+tqdm
