@@ -1,0 +1,199 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{amsmath}
+
+\title{\textbf{Programming Assignment 1: Report}\\ \large Word Embeddings and Named Entity Recognition}
+\author{Team Members: 22b1279, 22b1233}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{Task 1: GloVe Pre-training}
+
+\subsection*{1.1 Hyperparameters}
+To avoid an explosion of runs, we fixed the dimension at $d=200$ to identify the optimal hyperparameters. Based on loss convergence and semantic quality of nearest neighbors, the final hyperparameters chosen for the full run ($d \in \{50, 100, 200, 300\}$) were:
+\begin{itemize}
+    \item \textbf{Context Window ($w$):} 10 (Chosen to capture broader topical semantics).
+    \item \textbf{Learning Rate:} 0.05 (Using Adagrad optimizer).
+    \item \textbf{Iterations (Epochs):} 50
+    \item \textbf{Weighting Hyperparameters:} $x_{max} = 100$, $\alpha = 0.75$.
+    \item \textbf{Batch Size:} 32,768 (Optimized for GPU VRAM pre-loading).
+\end{itemize}
+
+\subsection*{1.2 Latency and Loss Analysis}
+The GloVe model was trained on a T4 GPU. As the embedding dimension increased, the model's capacity to learn complex representations improved, resulting in a strictly lower final weighted MSE loss for higher dimensions (with $d=300$ achieving the lowest loss). Latency scaled linearly with the embedding dimension due to the increased matrix multiplication overhead during the forward and backward passes.
+
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=0.8\textwidth]{glvoeloss.png}
+    \caption{GloVe Training Loss over 50 Epochs for $d \in \{50, 100, 200, 300\}$}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=0.8\textwidth]{latency.png}
+    \caption{Training Latency vs. Embedding Dimension}
+\end{figure}
+
+\subsection*{1.3 Nearest Neighbors (GloVe, $d=200$)}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Target Word} & \textbf{Top-5 Nearest Neighbors (Cosine Similarity)} \\
+        \midrule
+        government & state, federal, should, officials, would \\
+        said & says, that, also, told, he \\
+        India & Indian, Pakistan, China, Australia, Africa \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\clearpage
+\section*{Task 2: SVD Pipeline}
+
+\subsection*{2.1 SVD Latency Analysis}
+The SVD approach decomposes a sparse Term-Document matrix ($25013 \times 67093$). Because SVD is algebraic rather than iterative, execution was incredibly fast. Latencies recorded were: $d=50$ (0.88s), $d=100$ (2.14s), $d=200$ (6.65s), and $d=300$ (6.74s).
+
+\begin{figure}[H]
+    \centering
+    % Placeholder: Replace with your actual image path
+    \includegraphics[width=0.8\textwidth]{svdlatency.png}
+    \caption{Truncated SVD Latency vs. Embedding Dimension}
+\end{figure}
+
+\subsection*{2.2 Nearest Neighbors (Raw SVD, $d=300$)}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Target Word} & \textbf{Top-5 Nearest Neighbors (Cosine Similarity)} \\
+        \midrule
+        government & raise, ugly, downgraded, consortium, Reuters \\
+        said & was, had, general, meetings, who \\
+        India & observation, model, engineer, Chief, technical \\
+        \bottomrule
+    \end{tabular}
+    \caption{Top-5 nearest neighbors using Raw SVD embeddings at $d=300$.}
+\end{table}
+\noindent \textbf{Observation:} The Raw SVD neighbors are noticeably noisier than GloVe. Words like ``ugly'' and ``downgraded'' as neighbors of ``government'' indicate that SVD on a raw term-document matrix captures document-level co-occurrence rather than fine-grained syntactic relationships.
+
+\section*{Task 3: NER using CRF}
+
+\subsection*{3.1 Engineered Features}
+The Conditional Random Field (CRF) relied entirely on hand-crafted features. The features included for each token at index $i$ were:
+\begin{itemize}
+    \item \textbf{Lexical:} Current word (\texttt{word.lower()}), Previous word (\texttt{-1:word.lower()}), Next word (\texttt{+1:word.lower()}).
+    \item \textbf{Shape:} Capitalization patterns (\texttt{word.isupper()}, \texttt{word.istitle()}), Presence of digits (\texttt{word.isdigit()}).
+    \item \textbf{Sub-word:} Suffixes (\texttt{word[-3:]}, \texttt{word[-2:]}), Prefixes (\texttt{word[:3]}).
+    \item \textbf{Boundary:} Beginning of Sentence (\texttt{BOS}), End of Sentence (\texttt{EOS}).
+\end{itemize}
+
+\subsection*{3.2 Feature Importance}
+The CRF heavily prioritized capitalization and local context to classify entities. The top learned features include:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lrl}
+        \toprule
+        \textbf{Weight} & \textbf{Target Tag} & \textbf{Feature} \\
+        \midrule
+        -6.8545 & O & \texttt{word.istitle()} \\
+         6.6912 & O & \texttt{word[-2:]:0M} \\
+         6.4854 & O & \texttt{word[-2:]:5M} \\
+         5.4754 & B-ORG & \texttt{-1:word.lower():v} \\
+         5.3889 & I-LOC & \texttt{-1:word.lower():colo} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Top-5 highest weighted features learned by the CRF model.}
+\end{table}
+
+\subsection*{3.3 Baseline Metrics}
+Evaluating the CRF on the CoNLL-2003 test set yielded:
+\begin{itemize}
+    \item \textbf{Token-Level Accuracy:} 0.9571
+    \item \textbf{Macro-F1 Score:} 0.7834
+\end{itemize}
+
+\clearpage
+\section*{Task 4: NER using Feature Learning}
+
+\subsection*{4.1 MLP Architecture and OOV Strategy}
+\textbf{Architecture:} We implemented a Multilayer Perceptron (MLP) mapping the $d$-dimensional embedding to the 9 NER tags. The architecture is: \texttt{Linear(d, 128) $\rightarrow$ ReLU $\rightarrow$ Dropout(0.3) $\rightarrow$ Linear(128, 9)}. The model was trained for 10 epochs using \textbf{CrossEntropyLoss} and the \textbf{Adam} optimizer with a learning rate of 0.001. \\
+
+\noindent \textbf{OOV Strategy:} For Out-Of-Vocabulary tokens in the CoNLL-2003 dataset, we implemented an \texttt{<UNK>} token generated via \textbf{Mean-Pooling}, with a lowercase fallback (i.e., if the exact token is OOV, we check its lowercased form before applying the \texttt{<UNK>} vector). 
+\textit{Justification:} By averaging all known embeddings in our $V \times d$ matrix, the \texttt{<UNK>} token represents the mathematical center of the semantic space. This provides a neutral, unbiased representation for unseen words, minimizing geometric distortion in the MLP compared to inserting a zero-vector or a random vector. The lowercase fallback further reduces the OOV rate by matching tokens like ``Government'' to the known embedding for ``government''.
+
+\subsection*{4.2 Results Table}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Model} & \textbf{Dim ($d$)} & \textbf{Token Accuracy} & \textbf{Macro-F1} \\
+        \midrule
+        GLOVE-MLP & 50  & 0.8956 & 0.4753 \\
+        GLOVE-MLP & 100 & 0.9009 & 0.5237 \\
+        GLOVE-MLP & 200 & 0.9052 & 0.5462 \\
+        GLOVE-MLP & 300 & \textbf{0.9066} & \textbf{0.5624} \\
+        \midrule
+        SVD-MLP & 50  & 0.8288 & 0.0514 \\
+        SVD-MLP & 100 & 0.8361 & 0.1250 \\
+        SVD-MLP & 200 & 0.8520 & 0.2683 \\
+        SVD-MLP & 300 & 0.8607 & 0.3294 \\
+        \midrule
+        \textbf{CRF (Baseline)} & \textbf{N/A} & \textbf{0.9571} & \textbf{0.7834} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection*{4.3 Comparative Analysis}
+\textbf{Best Overall Configuration:} Among the feature-learning models, the \textbf{GloVe-MLP at $d=300$} was the best overall configuration, achieving the highest F1 score (0.5624). GloVe significantly outperformed Raw SVD across all dimensions because GloVe's sliding context window enforces fine-grained syntactic relationships (grouping nouns with nouns), whereas Raw SVD simply groups broad document-level topics. \\
+
+\noindent \textbf{MLP vs. CRF:} Despite using dense, pre-trained embeddings, the \textbf{CRF Baseline utterly dominated the Neural MLPs} (F1 0.7834 vs 0.5624). This disparity highlights the critical importance of context in NER. Our MLP only evaluated an isolated token's embedding to predict its tag. The CRF, however, accessed surrounding words, suffixes, and crucially, capitalization rules. Because NER is heavily grammar- and context-dependent, human-engineered features easily outperformed context-blind feature learning.
+
+\clearpage
+\section*{Task 5: [Extra Credit] SVD Performance Boost}
+
+We applied a TF-IDF transformation to the raw Term-Document matrix to down-weight high-frequency words before running Truncated SVD at $d=300$.
+
+\subsection*{5.1 Quality Check 1: Nearest Neighbors Comparison}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Word} & \textbf{Raw SVD Top-5} & \textbf{TF-IDF SVD Top-5} \\
+        \midrule
+        government & raise, ugly, downgraded, consortium, Reuters & Papua, consortium, Guinea, raise, copper \\
+        said & was, had, general, meetings, who & had, was, which, on, who \\
+        India & observation, model, engineer, Chief, technical & Indian, bloodshed, partition, Partition, 32 \\
+        year & million, platform, We, Our, start & million, Our, We, technology, business \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\noindent \textbf{Observation:} TF-IDF forced the SVD to capture deeper semantic relevance. For example, "India" shifted from generic business nouns (`engineer`, `model`) to highly specific historical/regional concepts (`Indian`, `partition`).
+
+\subsection*{5.2 Quality Check 2: MLP Evaluation}
+Training the MLP on the TF-IDF SVD vectors yielded:
+\begin{itemize}
+    \item \textbf{Raw SVD (d=300) Baseline:} Acc: 0.8607 $|$ F1: 0.3294
+    \item \textbf{TF-IDF SVD (d=300) Score:} Acc: 0.8595 $|$ F1: 0.3144
+\end{itemize}
+\noindent \textbf{Conclusion:} While TF-IDF vastly improved the topical quality of the vectors, it \textit{decreased} NER performance. Because NER relies heavily on syntax and grammar, artificially crushing the weights of common structural words distorted the grammatical relationships the MLP relies on, proving TF-IDF is better suited for Document Classification than Named Entity Recognition.
+
+\section*{GenAI Usage Policy Declaration}
+In accordance with the course honor code, we declare the use of a Generative AI assistant (Google Gemini) to assist with planning, optimizing PyTorch memory management (sparse embeddings), handling Scipy sparse matrices, and generating boilerplate plotting code. 
+
+\textbf{Shareable Chat Link:} \href{https://gemini.google.com/share/b898a7bd298b}{Click here to view the full prompt transcript.}
+
+\end{document}

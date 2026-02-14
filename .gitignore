@@ -1,0 +1,26 @@
+# Virtual environment
+cs728_a1_env/
+
+# Large data files
+*.json
+*.pkl
+embeddings/
+
+# Plots (generated from code, not tracked)
+plots/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Old utility file (renamed to utils.py)
+utility.py
