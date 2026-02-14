@@ -25,7 +25,7 @@ To avoid an explosion of runs, we fixed the dimension at $d=200$ to identify the
     \item \textbf{Context Window ($w$):} 10 (Chosen to capture broader topical semantics).
     \item \textbf{Learning Rate:} 0.05 (Using Adagrad optimizer).
     \item \textbf{Iterations (Epochs):} 50
-    \item \textbf{Weighting Hyperparameters:} $x_{max} = 100$, $\alpha = 0.75$.
+    \item \textbf{Weighting Hyperparameters:} $x_{max} = 100$, $\alpha = 1.0$.
     \item \textbf{Batch Size:} 32,768 (Optimized for GPU VRAM pre-loading).
 \end{itemize}
 
@@ -53,9 +53,9 @@ The GloVe model was trained on a T4 GPU. As the embedding dimension increased, t
         \toprule
         \textbf{Target Word} & \textbf{Top-5 Nearest Neighbors (Cosine Similarity)} \\
         \midrule
-        government & state, federal, should, officials, would \\
-        said & says, that, also, told, he \\
-        India & Indian, Pakistan, China, Australia, Africa \\
+        government & state, federal, officials, should, would \\
+        said & says, that, also, he, told \\
+        India & Indian, Pakistan, China, Australia, Japan \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -142,15 +142,15 @@ Evaluating the CRF on the CoNLL-2003 test set yielded:
         \toprule
         \textbf{Model} & \textbf{Dim ($d$)} & \textbf{Token Accuracy} & \textbf{Macro-F1} \\
         \midrule
-        GLOVE-MLP & 50  & 0.8956 & 0.4753 \\
-        GLOVE-MLP & 100 & 0.9009 & 0.5237 \\
-        GLOVE-MLP & 200 & 0.9052 & 0.5462 \\
-        GLOVE-MLP & 300 & \textbf{0.9066} & \textbf{0.5624} \\
+        GLOVE-MLP & 50  & 0.8964 & 0.4724 \\
+        GLOVE-MLP & 100 & 0.9016 & 0.5304 \\
+        GLOVE-MLP & 200 & 0.9053 & 0.5497 \\
+        GLOVE-MLP & 300 & \textbf{0.9072} & \textbf{0.5648} \\
         \midrule
-        SVD-MLP & 50  & 0.8288 & 0.0514 \\
-        SVD-MLP & 100 & 0.8361 & 0.1250 \\
-        SVD-MLP & 200 & 0.8520 & 0.2683 \\
-        SVD-MLP & 300 & 0.8607 & 0.3294 \\
+        SVD-MLP & 50  & 0.8289 & 0.0431 \\
+        SVD-MLP & 100 & 0.8357 & 0.1206 \\
+        SVD-MLP & 200 & 0.8518 & 0.2800 \\
+        SVD-MLP & 300 & 0.8617 & 0.3333 \\
         \midrule
         \textbf{CRF (Baseline)} & \textbf{N/A} & \textbf{0.9571} & \textbf{0.7834} \\
         \bottomrule
@@ -158,9 +158,9 @@ Evaluating the CRF on the CoNLL-2003 test set yielded:
 \end{table}
 
 \subsection*{4.3 Comparative Analysis}
-\textbf{Best Overall Configuration:} Among the feature-learning models, the \textbf{GloVe-MLP at $d=300$} was the best overall configuration, achieving the highest F1 score (0.5624). GloVe significantly outperformed Raw SVD across all dimensions because GloVe's sliding context window enforces fine-grained syntactic relationships (grouping nouns with nouns), whereas Raw SVD simply groups broad document-level topics. \\
+\textbf{Best Overall Configuration:} Among the feature-learning models, the \textbf{GloVe-MLP at $d=300$} was the best overall configuration, achieving the highest F1 score (0.5648). GloVe significantly outperformed Raw SVD across all dimensions because GloVe's sliding context window enforces fine-grained syntactic relationships (grouping nouns with nouns), whereas Raw SVD simply groups broad document-level topics. \\
 
-\noindent \textbf{MLP vs. CRF:} Despite using dense, pre-trained embeddings, the \textbf{CRF Baseline utterly dominated the Neural MLPs} (F1 0.7834 vs 0.5624). This disparity highlights the critical importance of context in NER. Our MLP only evaluated an isolated token's embedding to predict its tag. The CRF, however, accessed surrounding words, suffixes, and crucially, capitalization rules. Because NER is heavily grammar- and context-dependent, human-engineered features easily outperformed context-blind feature learning.
+\noindent \textbf{MLP vs. CRF:} Despite using dense, pre-trained embeddings, the \textbf{CRF Baseline utterly dominated the Neural MLPs} (F1 0.7834 vs 0.5648). This disparity highlights the critical importance of context in NER. Our MLP only evaluated an isolated token's embedding to predict its tag. The CRF, however, accessed surrounding words, suffixes, and crucially, capitalization rules. Because NER is heavily grammar- and context-dependent, human-engineered features easily outperformed context-blind feature learning.
 
 \clearpage
 \section*{Task 5: [Extra Credit] SVD Performance Boost}
@@ -178,6 +178,7 @@ We applied a TF-IDF transformation to the raw Term-Document matrix to down-weigh
         said & was, had, general, meetings, who & had, was, which, on, who \\
         India & observation, model, engineer, Chief, technical & Indian, bloodshed, partition, Partition, 32 \\
         year & million, platform, We, Our, start & million, Our, We, technology, business \\
+        economic & financing, invest, infrastructure, Wang, Xinhua & Latin, Xinhua, financing, Wang, China \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -186,8 +187,8 @@ We applied a TF-IDF transformation to the raw Term-Document matrix to down-weigh
 \subsection*{5.2 Quality Check 2: MLP Evaluation}
 Training the MLP on the TF-IDF SVD vectors yielded:
 \begin{itemize}
-    \item \textbf{Raw SVD (d=300) Baseline:} Acc: 0.8607 $|$ F1: 0.3294
-    \item \textbf{TF-IDF SVD (d=300) Score:} Acc: 0.8595 $|$ F1: 0.3144
+    \item \textbf{Raw SVD (d=300) Baseline:} Acc: 0.8617 $|$ F1: 0.3333
+    \item \textbf{TF-IDF SVD (d=300) Score:} Acc: 0.8581 $|$ F1: 0.3092
 \end{itemize}
 \noindent \textbf{Conclusion:} While TF-IDF vastly improved the topical quality of the vectors, it \textit{decreased} NER performance. Because NER relies heavily on syntax and grammar, artificially crushing the weights of common structural words distorted the grammatical relationships the MLP relies on, proving TF-IDF is better suited for Document Classification than Named Entity Recognition.
 

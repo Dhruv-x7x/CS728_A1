@@ -20,7 +20,7 @@ from utils import load_data_and_build_cooccurrence, get_nearest_neighbors
 class GloVeDataset(Dataset):
     """Wraps the co-occurrence dictionary into a PyTorch dataset with GloVe weighting."""
 
-    def __init__(self, cooc_dict, x_max=100, alpha=0.75):
+    def __init__(self, cooc_dict, x_max=100, alpha=1.0):
         self.i_idx, self.j_idx, self.counts, self.weights = [], [], [], []
 
         for (i, j), count in tqdm(cooc_dict.items(), desc="Preparing PyTorch Dataset"):
